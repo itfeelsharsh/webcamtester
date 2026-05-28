@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Webcam Tester - Diagnostic Tool</title>
+    <!-- Prevent all web crawlers, search indexers and bots from indexing/crawling this page -->
+    <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noodp, noydir">
+    <meta name="googlebot" content="noindex, nofollow">
+    <meta name="slurp" content="noindex, nofollow">
+    <meta name="bingbot" content="noindex, nofollow">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>WebcamTester</h1>
+            <div class="tagline">Online Webcam &amp; Camera Diagnostic Tool</div>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="info-block">
+            <p>Use this tool to test and analyze your web camera. The application runs entirely in your web browser. No image data is transmitted over the internet.</p>
+        </section>
+
+        <div class="grid">
+            <div class="col-left">
+                <div class="panel">
+                    <div class="panel-header">Camera Live View</div>
+                    <div class="panel-body">
+                        <div class="video-container">
+                            <video id="webcam-video" autoplay playsinline muted></video>
+                            <div id="video-placeholder" class="video-placeholder">
+                                <span>Camera stream is inactive.<br>Click "Start Camera Test" below.</span>
+                            </div>
+                        </div>
+                        <div class="controls">
+                            <div class="form-group">
+                                <label for="device-select">Select Camera Device:</label>
+                                <select id="device-select">
+                                    <option value="">-- Click Start to Enumerate Devices --</option>
+                                </select>
+                            </div>
+                            <div class="btn-group">
+                                <button id="btn-start" class="btn btn-primary">Start Camera Test</button>
+                                <button id="btn-stop" class="btn btn-danger" disabled>Stop Camera Test</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-right">
+                <div class="panel">
+                    <div class="panel-header">Camera Properties &amp; Analysis</div>
+                    <div class="panel-body">
+                        <table class="specs-table">
+                            <tbody>
+                                <tr>
+                                    <th>Webcam Name</th>
+                                    <td id="val-name" class="highlight">Not selected</td>
+                                </tr>
+                                <tr>
+                                    <th>Quality Rating</th>
+                                    <td id="val-rating">—</td>
+                                </tr>
+                                <tr>
+                                    <th>Built-in Microphone</th>
+                                    <td id="val-mic">—</td>
+                                </tr>
+                                <tr>
+                                    <th>Built-in Speaker</th>
+                                    <td id="val-speaker">—</td>
+                                </tr>
+                                <tr>
+                                    <th>Frame rate</th>
+                                    <td id="val-fps">—</td>
+                                </tr>
+                                <tr>
+                                    <th>Stream Type</th>
+                                    <td id="val-stream">—</td>
+                                </tr>
+                                <tr>
+                                    <th>Image Mode</th>
+                                    <td id="val-mode">—</td>
+                                </tr>
+                                <tr>
+                                    <th>Webcam MegaPixels</th>
+                                    <td id="val-megapixels">—</td>
+                                </tr>
+                                <tr>
+                                    <th>Webcam Resolution</th>
+                                    <td id="val-resolution">—</td>
+                                </tr>
+                                <tr>
+                                    <th>Video Standard</th>
+                                    <td id="val-standard">—</td>
+                                </tr>
+                                <tr>
+                                    <th>Aspect Ratio</th>
+                                    <td id="val-aspect">—</td>
+                                </tr>
+                                <tr>
+                                    <th>PNG File Size</th>
+                                    <td id="val-png">—</td>
+                                </tr>
+                                <tr>
+                                    <th>JPEG File Size</th>
+                                    <td id="val-jpeg">—</td>
+                                </tr>
+                                <tr>
+                                    <th>Bitrate</th>
+                                    <td id="val-bitrate">—</td>
+                                </tr>
+                                <tr>
+                                    <th>Number of Colors</th>
+                                    <td id="val-colors">—</td>
+                                </tr>
+                                <tr>
+                                    <th>Average RGB Color</th>
+                                    <td>
+                                        <div class="color-row">
+                                            <span id="val-rgb">—</span>
+                                            <div id="color-preview" class="color-preview"></div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Lightness</th>
+                                    <td id="val-lightness">—</td>
+                                </tr>
+                                <tr>
+                                    <th>Luminosity</th>
+                                    <td id="val-luminosity">—</td>
+                                </tr>
+                                <tr>
+                                    <th>Brightness</th>
+                                    <td id="val-brightness">—</td>
+                                </tr>
+                                <tr>
+                                    <th>Hue</th>
+                                    <td id="val-hue">—</td>
+                                </tr>
+                                <tr>
+                                    <th>Saturation</th>
+                                    <td id="val-saturation">—</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hidden canvas for rendering frame analysis -->
+        <canvas id="analysis-canvas" style="display: none;"></canvas>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2015 WebcamTester. All rights reserved. Diagnostic features run locally on client devices.</p>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
