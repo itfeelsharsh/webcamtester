@@ -20,6 +20,7 @@ let liveFps = 0;
 const videoEl = document.getElementById('webcam-video');
 const placeholderEl = document.getElementById('video-placeholder');
 const deviceSelect = document.getElementById('device-select');
+const mirrorToggle = document.getElementById('mirror-toggle');
 const btnStart = document.getElementById('btn-start');
 const btnStop = document.getElementById('btn-stop');
 const canvas = document.getElementById('analysis-canvas');
@@ -63,6 +64,13 @@ deviceSelect.addEventListener('change', () => {
     if (activeStream) {
         stopTest();
         startTest();
+    }
+});
+mirrorToggle.addEventListener('change', () => {
+    if (mirrorToggle.checked) {
+        videoEl.classList.add('mirrored');
+    } else {
+        videoEl.classList.remove('mirrored');
     }
 });
 

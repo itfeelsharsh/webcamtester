@@ -30,7 +30,7 @@
                     <div class="panel-header">Camera Live View</div>
                     <div class="panel-body">
                         <div class="video-container">
-                            <video id="webcam-video" autoplay playsinline muted></video>
+                            <video id="webcam-video" class="mirrored" autoplay playsinline muted></video>
                             <div id="video-placeholder" class="video-placeholder">
                                 <span>Camera stream is inactive.<br>Click "Start Camera Test" below.</span>
                             </div>
@@ -41,6 +41,10 @@
                                 <select id="device-select">
                                     <option value="">-- Click Start to Enumerate Devices --</option>
                                 </select>
+                            </div>
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="mirror-toggle" checked>
+                                <label for="mirror-toggle">Mirror View (like real-life mirror / selfie camera)</label>
                             </div>
                             <div class="btn-group">
                                 <button id="btn-start" class="btn btn-primary">Start Camera Test</button>
