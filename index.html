@@ -2,14 +2,16 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Webcam Tester - Diagnostic Tool</title>
-    <!-- Prevent all web crawlers, search indexers and bots from indexing/crawling this page -->
     <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noodp, noydir">
     <meta name="googlebot" content="noindex, nofollow">
     <meta name="slurp" content="noindex, nofollow">
     <meta name="bingbot" content="noindex, nofollow">
     <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <header>
@@ -29,7 +31,7 @@
                 <div class="panel">
                     <div class="panel-header">Camera Live View</div>
                     <div class="panel-body">
-                        <div class="video-container">
+                        <div class="video-container" id="video-container">
                             <video id="webcam-video" class="mirrored" autoplay playsinline muted></video>
                             <div id="video-placeholder" class="video-placeholder">
                                 <span>Camera stream is inactive.<br>Click "Start Camera Test" below.</span>
@@ -42,6 +44,16 @@
                                     <option value="">-- Click Start to Enumerate Devices --</option>
                                 </select>
                             </div>
+                            <div class="form-group">
+                                <label for="aspect-select">Select Aspect Ratio:</label>
+                                <select id="aspect-select">
+                                    <option value="auto">Default (Auto)</option>
+                                    <option value="1.7777777778">16:9 (Widescreen)</option>
+                                    <option value="1.3333333333">4:3 (Standard)</option>
+                                    <option value="1">1:1 (Square)</option>
+                                    <option value="2.3333333333">21:9 (Cinema)</option>
+                                </select>
+                            </div>
                             <div class="checkbox-group">
                                 <input type="checkbox" id="mirror-toggle" checked>
                                 <label for="mirror-toggle">Mirror View (like real-life mirror / selfie camera)</label>
@@ -49,6 +61,7 @@
                             <div class="btn-group">
                                 <button id="btn-start" class="btn btn-primary">Start Camera Test</button>
                                 <button id="btn-stop" class="btn btn-danger" disabled>Stop Camera Test</button>
+                                <button id="btn-capture" class="btn btn-success" disabled>Capture Photo</button>
                             </div>
                         </div>
                     </div>
@@ -157,7 +170,6 @@
             </div>
         </div>
 
-        <!-- Hidden canvas for rendering frame analysis -->
         <canvas id="analysis-canvas" style="display: none;"></canvas>
     </main>
 

@@ -1,7 +1,6 @@
 User-agent: *
 Disallow: /
 
-# Specifically disallow AI Crawlers and Search Engines
 User-agent: GPTBot
 Disallow: /
 

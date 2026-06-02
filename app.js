@@ -1,32 +1,28 @@
-// Webcam Tester - Diagnostic and Analysis Script
 let activeStream = null;
 let analysisInterval = null;
 let fpsInterval = null;
 let animationFrameId = null;
-
-// RTCPeerConnection objects for loopback bitrate estimation
 let pc1 = null;
 let pc2 = null;
 let bitrateInterval = null;
 let prevBytesSent = 0;
 let prevBitrateTime = 0;
-
-// Frame rate tracking
 let frameCount = 0;
 let lastFpsUpdate = 0;
 let liveFps = 0;
 
-// UI Elements
 const videoEl = document.getElementById('webcam-video');
 const placeholderEl = document.getElementById('video-placeholder');
 const deviceSelect = document.getElementById('device-select');
+const aspectSelect = document.getElementById('aspect-select');
 const mirrorToggle = document.getElementById('mirror-toggle');
 const btnStart = document.getElementById('btn-start');
 const btnStop = document.getElementById('btn-stop');
+const btnCapture = document.getElementById('btn-capture');
 const canvas = document.getElementById('analysis-canvas');
 const ctx = canvas.getContext('2d');
+const videoContainer = document.getElementById('video-container');
 
-// Spec elements
 const elName = document.getElementById('val-name');
 const elRating = document.getElementById('val-rating');
 const elMic = document.getElementById('val-mic');
@@ -50,22 +46,29 @@ const elBrightness = document.getElementById('val-brightness');
 const elHue = document.getElementById('val-hue');
 const elSaturation = document.getElementById('val-saturation');
 
-// Initialize device list and audio checks
 window.addEventListener('DOMContentLoaded', () => {
     checkAudioDevices();
-    
-    // Auto enumerate on first user interaction or permission grant
     navigator.mediaDevices.addEventListener('devicechange', checkAudioDevices);
 });
 
 btnStart.addEventListener('click', startTest);
 btnStop.addEventListener('click', stopTest);
+btnCapture.addEventListener('click', capturePhoto);
+
 deviceSelect.addEventListener('change', () => {
     if (activeStream) {
         stopTest();
         startTest();
     }
 });
+
+aspectSelect.addEventListener('change', () => {
+    if (activeStream) {
+        stopTest();
+        startTest();
+    }
+});
+
 mirrorToggle.addEventListener('change', () => {
     if (mirrorToggle.checked) {
         videoEl.classList.add('mirrored');
@@ -74,7 +77,6 @@ mirrorToggle.addEventListener('change', () => {
     }
 });
 
-// Detect Audio Devices (Microphone and Speaker)
 async function checkAudioDevices() {
     try {
         const devices = await navigator.mediaDevices.enumerateDevices();
@@ -89,10 +91,7 @@ async function checkAudioDevices() {
         elMic.textContent = hasMic ? "Yes" : "No";
         elSpeaker.textContent = hasSpeaker ? "Yes" : "No";
         
-        // Populate select list if permissions already exist
         const videoDevices = devices.filter(d => d.kind === 'videoinput');
-        
-        // Save current selection if any
         const currentSelection = deviceSelect.value;
         deviceSelect.innerHTML = '';
         
@@ -113,16 +112,16 @@ async function checkAudioDevices() {
             }
         }
     } catch (err) {
-        console.error("Error enumerating devices:", err);
+        console.error(err);
         elMic.textContent = "Error";
         elSpeaker.textContent = "Error";
     }
 }
 
-// Start camera stream and analytics
 async function startTest() {
     btnStart.disabled = true;
     
+    const selectedAspect = aspectSelect.value;
     const constraints = {
         audio: false,
         video: {
@@ -131,7 +130,10 @@ async function startTest() {
         }
     };
     
-    // If device selection is made, bind it
+    if (selectedAspect && selectedAspect !== "auto") {
+        constraints.video.aspectRatio = { ideal: parseFloat(selectedAspect) };
+    }
+    
     if (deviceSelect.value) {
         constraints.video.deviceId = { exact: deviceSelect.value };
     }
@@ -143,11 +145,10 @@ async function startTest() {
         placeholderEl.style.display = 'none';
         
         btnStop.disabled = false;
+        btnCapture.disabled = false;
         
-        // Refresh device list to populate camera names now that permissions are granted
         await checkAudioDevices();
         
-        // Extract basic track characteristics
         const track = stream.getVideoTracks()[0];
         const settings = track.getSettings();
         
@@ -157,15 +158,19 @@ async function startTest() {
         const width = settings.width || videoEl.videoWidth || 640;
         const height = settings.height || videoEl.videoHeight || 480;
         
-        updateResolutionProperties(width, height);
+        if (selectedAspect === 'auto') {
+            videoContainer.style.setProperty('--aspect-ratio', `${width} / ${height}`);
+        } else {
+            videoContainer.style.setProperty('--aspect-ratio', selectedAspect);
+        }
         
-        // Start live measurement loops
+        updateResolutionProperties(width, height);
         startFpsMeasurement(settings.frameRate);
         startBitrateMeasurement(stream);
         startImageAnalysis(width, height);
         
     } catch (err) {
-        console.error("Camera access failed:", err);
+        console.error(err);
         alert("Could not access webcam. Please ensure camera permissions are allowed.");
         btnStart.disabled = false;
         placeholderEl.style.display = 'flex';
@@ -173,7 +178,6 @@ async function startTest() {
     }
 }
 
-// Stop camera stream and reset UI
 function stopTest() {
     if (activeStream) {
         activeStream.getTracks().forEach(track => track.stop());
@@ -184,19 +188,17 @@ function stopTest() {
     placeholderEl.style.display = 'flex';
     placeholderEl.innerHTML = `<span>Camera stream is inactive.<br>Click "Start Camera Test" below.</span>`;
     
-    // Clear intervals
     clearInterval(analysisInterval);
     clearInterval(bitrateInterval);
     cancelAnimationFrame(animationFrameId);
     
-    // Clean up WebRTC loopback connections
     if (pc1) { pc1.close(); pc1 = null; }
     if (pc2) { pc2.close(); pc2 = null; }
     
     btnStart.disabled = false;
     btnStop.disabled = true;
+    btnCapture.disabled = true;
     
-    // Reset spec display to default dashes
     resetSpecFields();
 }
 
@@ -215,7 +217,7 @@ function resetSpecFields() {
     elBitrate.textContent = "—";
     elColors.textContent = "—";
     elRgb.textContent = "—";
-    elColorPreview.style.backgroundColor = '#ffffff';
+    elColorPreview.style.backgroundColor = 'transparent';
     elLightness.textContent = "—";
     elLuminosity.textContent = "—";
     elBrightness.textContent = "—";
@@ -223,25 +225,20 @@ function resetSpecFields() {
     elSaturation.textContent = "—";
 }
 
-// Calculate Greatest Common Divisor (GCD) for Aspect Ratio
 function getGCD(a, b) {
     return b ? getGCD(b, a % b) : a;
 }
 
-// Map width and height to aspect ratio and video standard
 function updateResolutionProperties(w, h) {
     elResolution.textContent = `${w} x ${h}`;
     
-    // Megapixels
     const mp = (w * h) / 1000000;
     elMegapixels.textContent = `${mp.toFixed(2)} MP`;
     
-    // Aspect Ratio
     const gcd = getGCD(w, h);
     const aspectW = w / gcd;
     const aspectH = h / gcd;
     
-    // Check common approximations if GCD is weird
     let aspectStr = `${aspectW}:${aspectH}`;
     const ratio = w / h;
     if (Math.abs(ratio - 1.777) < 0.01) aspectStr = "16:9 (Widescreen)";
@@ -253,7 +250,6 @@ function updateResolutionProperties(w, h) {
     
     elAspect.textContent = aspectStr;
     
-    // Video Standard
     let standard = "Custom / Other";
     if (w >= 3840 && h >= 2160) standard = "4K UHD (Ultra HD)";
     else if (w >= 2560 && h >= 1440) standard = "2K / QHD (1440p)";
@@ -267,7 +263,6 @@ function updateResolutionProperties(w, h) {
     elStandard.textContent = standard;
 }
 
-// Live frame rate measurement loop
 function startFpsMeasurement(targetFps) {
     frameCount = 0;
     lastFpsUpdate = performance.now();
@@ -281,7 +276,6 @@ function startFpsMeasurement(targetFps) {
             frameCount = 0;
             lastFpsUpdate = now;
             
-            // Format output: show target settings FPS and current live measured FPS
             const targetStr = targetFps ? `${targetFps} FPS` : 'Auto';
             elFps.textContent = `${liveFps.toFixed(1)} FPS (Target: ${targetStr})`;
         }
@@ -294,7 +288,6 @@ function startFpsMeasurement(targetFps) {
     animationFrameId = requestAnimationFrame(measureLoop);
 }
 
-// Local WebRTC loopback connection to fetch actual video bitrate
 async function startBitrateMeasurement(stream) {
     try {
         pc1 = new RTCPeerConnection({
@@ -328,10 +321,10 @@ async function startBitrateMeasurement(stream) {
                 if (report.type === 'outbound-rtp' && report.kind === 'video') {
                     const bytes = report.bytesSent;
                     const now = performance.now();
-                    const timeDelta = (now - prevBitrateTime) / 1000; // in seconds
+                    const timeDelta = (now - prevBitrateTime) / 1000;
                     
                     if (prevBytesSent > 0 && timeDelta > 0) {
-                        const bitRate = ((bytes - prevBytesSent) * 8) / timeDelta; // bits per second
+                        const bitRate = ((bytes - prevBytesSent) * 8) / timeDelta;
                         if (bitRate > 1000000) {
                             elBitrate.textContent = `${(bitRate / 1000000).toFixed(2)} Mbps`;
                         } else {
@@ -344,15 +337,13 @@ async function startBitrateMeasurement(stream) {
             });
         }, 1000);
     } catch (e) {
-        console.warn("Bitrate loopback estimation unsupported or failed: ", e);
         elBitrate.textContent = "N/A (Loopback Denied)";
     }
 }
 
-// Perform image and color analysis
 function startImageAnalysis(videoW, videoH) {
-    // Hidden auxiliary canvas for image sizing and processing
     const fullResCanvas = document.createElement('canvas');
+    let fileAnalysisCounter = 0;
     
     analysisInterval = setInterval(() => {
         if (!videoEl.videoWidth || videoEl.paused || videoEl.ended) return;
@@ -360,21 +351,16 @@ function startImageAnalysis(videoW, videoH) {
         const w = videoEl.videoWidth;
         const h = videoEl.videoHeight;
         
-        // Ensure analysis canvas matches aspect ratios
         canvas.width = 160;
         canvas.height = 120;
         
-        // Draw frame onto small analysis canvas
         ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
         const imgDataObj = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const data = imgDataObj.data;
         
-        // Calculate RGB stats & GrayMode
         let sumR = 0, sumG = 0, sumB = 0;
         let isGrayscale = true;
         
-        // Keep track of unique colors in a fast downsampled palette
-        // Reduces 24-bit color space to 15-bit (32 values per channel) to fit in memory
         const uniqueColorsSet = new Set();
         
         for (let i = 0; i < data.length; i += 4) {
@@ -386,12 +372,10 @@ function startImageAnalysis(videoW, videoH) {
             sumG += g;
             sumB += b;
             
-            // Check if frame is monochrome/grayscale
             if (isGrayscale && (Math.abs(r - g) > 15 || Math.abs(r - b) > 15 || Math.abs(g - b) > 15)) {
                 isGrayscale = false;
             }
             
-            // Quantize to 15-bit colors (5-bits per R, G, B) to estimate colors quickly
             const qColor = ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3);
             uniqueColorsSet.add(qColor);
         }
@@ -401,58 +385,54 @@ function startImageAnalysis(videoW, videoH) {
         const avgG = sumG / pixelCount;
         const avgB = sumB / pixelCount;
         
-        // Show Image Mode
         elMode.textContent = isGrayscale ? "Grayscale (Mono)" : "Color";
         
-        // Approximate Unique Colors
-        const approxColors = uniqueColorsSet.size * 8; // scaling up because of downsampling
+        const approxColors = uniqueColorsSet.size * 8;
         elColors.textContent = approxColors.toLocaleString();
         
-        // Average RGB Color String
         const rgbStr = `rgb(${Math.round(avgR)}, ${Math.round(avgG)}, ${Math.round(avgB)})`;
         elRgb.textContent = rgbStr;
         elColorPreview.style.backgroundColor = rgbStr;
         
-        // Compute HSL
         const hsl = rgbToHsl(avgR, avgG, avgB);
         elHue.textContent = `${Math.round(hsl.h)}°`;
         elSaturation.textContent = `${Math.round(hsl.s * 100)}%`;
         elLightness.textContent = `${Math.round(hsl.l * 100)}%`;
         
-        // Luminosity (perceptive formula)
         const luminosity = 0.2126 * avgR + 0.7152 * avgG + 0.0722 * avgB;
         elLuminosity.textContent = `${Math.round((luminosity / 255) * 100)}%`;
         
-        // Brightness
         const brightness = (avgR + avgG + avgB) / 3;
         elBrightness.textContent = `${Math.round((brightness / 255) * 100)}%`;
         
-        // Draw full-res canvas snapshot to measure compressed file sizes
-        fullResCanvas.width = w;
-        fullResCanvas.height = h;
-        const fullCtx = fullResCanvas.getContext('2d');
-        fullCtx.drawImage(videoEl, 0, 0, w, h);
+        fileAnalysisCounter++;
+        if (fileAnalysisCounter >= 3) {
+            fileAnalysisCounter = 0;
+            
+            fullResCanvas.width = w;
+            fullResCanvas.height = h;
+            const fullCtx = fullResCanvas.getContext('2d');
+            fullCtx.drawImage(videoEl, 0, 0, w, h);
+            
+            fullResCanvas.toBlob((blob) => {
+                if (blob) {
+                    elPng.textContent = formatBytes(blob.size);
+                }
+            }, 'image/png');
+            
+            fullResCanvas.toBlob((blob) => {
+                if (blob) {
+                    elJpeg.textContent = formatBytes(blob.size);
+                }
+            }, 'image/jpeg', 0.85);
+        }
         
-        fullResCanvas.toBlob((blob) => {
-            if (blob) {
-                elPng.textContent = formatBytes(blob.size);
-            }
-        }, 'image/png');
-        
-        fullResCanvas.toBlob((blob) => {
-            if (blob) {
-                elJpeg.textContent = formatBytes(blob.size);
-            }
-        }, 'image/jpeg', 0.85);
-        
-        // Evaluate Quality Rating based on key features
         const ratingScore = calculateQualityRating(w, h, liveFps, approxColors, luminosity);
         elRating.textContent = ratingScore;
         
     }, 1000);
 }
 
-// Convert RGB to HSL values
 function rgbToHsl(r, g, b) {
     r /= 255;
     g /= 255;
@@ -463,7 +443,7 @@ function rgbToHsl(r, g, b) {
     let h, s, l = (max + min) / 2;
     
     if (max === min) {
-        h = s = 0; // achromatic
+        h = s = 0;
     } else {
         const d = max - min;
         s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
@@ -478,43 +458,36 @@ function rgbToHsl(r, g, b) {
     return { h: h * 360, s: s, l: l };
 }
 
-// Quality Scoring Algorithm
 function calculateQualityRating(w, h, fps, colors, luminosity) {
     let score = 0;
     
-    // 1. Resolution contribution (max 40 pts)
     const pixels = w * h;
-    if (pixels >= 8294400) score += 40; // 4K
-    else if (pixels >= 2073600) score += 35; // 1080p
-    else if (pixels >= 921600) score += 25; // 720p
-    else if (pixels >= 307200) score += 15; // VGA
+    if (pixels >= 8294400) score += 40;
+    else if (pixels >= 2073600) score += 35;
+    else if (pixels >= 921600) score += 25;
+    else if (pixels >= 307200) score += 15;
     else score += 5;
     
-    // 2. Framerate contribution (max 30 pts)
     if (fps >= 55) score += 30;
     else if (fps >= 28) score += 25;
     else if (fps >= 15) score += 15;
     else score += 5;
     
-    // 3. Lighting & Brightness contribution (max 15 pts)
     const lumPercent = (luminosity / 255) * 100;
-    if (lumPercent > 30 && lumPercent < 80) score += 15; // Optimal lighting
+    if (lumPercent > 30 && lumPercent < 80) score += 15;
     else if (lumPercent >= 15 && lumPercent <= 90) score += 10;
-    else score += 2; // Too dark or overexposed
+    else score += 2;
     
-    // 4. Color variation (max 15 pts)
     if (colors > 3000) score += 15;
     else if (colors > 1000) score += 10;
     else score += 5;
     
-    // Generate scale rating
     if (score >= 90) return "Excellent ★★★★★";
     if (score >= 70) return "Good ★★★★☆";
     if (score >= 45) return "Fair ★★★☆☆";
     return "Poor ★★☆☆☆";
 }
 
-// Convert bytes to clean unit strings
 function formatBytes(bytes) {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -522,4 +495,36 @@ function formatBytes(bytes) {
     const sizes = ['Bytes', 'KB', 'MB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+}
+
+async function capturePhoto() {
+    if (!activeStream || !videoEl.videoWidth) return;
+    const w = videoEl.videoWidth;
+    const h = videoEl.videoHeight;
+    const captureCanvas = document.createElement('canvas');
+    captureCanvas.width = w;
+    captureCanvas.height = h;
+    const captureCtx = captureCanvas.getContext('2d');
+    
+    if (mirrorToggle.checked) {
+        captureCtx.translate(w, 0);
+        captureCtx.scale(-1, 1);
+    }
+    
+    captureCtx.drawImage(videoEl, 0, 0, w, h);
+    
+    captureCanvas.toBlob((blob) => {
+        if (blob) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const now = new Date();
+            const formattedDate = now.toISOString().replace(/T/, '_').replace(/\..+/, '').replace(/:/g, '-');
+            a.href = url;
+            a.download = `capture_${formattedDate}.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    }, 'image/png');
 }
